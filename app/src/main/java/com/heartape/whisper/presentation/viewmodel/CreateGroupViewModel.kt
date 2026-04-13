@@ -1,5 +1,6 @@
 package com.heartape.whisper.presentation.viewmodel
 
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -10,7 +11,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import java.io.File
 import javax.inject.Inject
 
 @HiltViewModel
@@ -37,10 +37,10 @@ class CreateGroupViewModel @Inject constructor(
     }
 
     // 处理图片上传
-    fun uploadAvatar(file: File) {
+    fun uploadIcon(uri: Uri) {
         viewModelScope.launch {
             _isUploading.value = true
-            val result = repo.uploadIcon(file)
+            val result = repo.uploadIcon(uri)
             when (result) {
                 is AppResult.Error -> _errorMessage.value = result.message
                 is AppResult.Success<UploadDto> -> {

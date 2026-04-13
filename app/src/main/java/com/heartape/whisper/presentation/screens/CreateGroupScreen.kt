@@ -17,13 +17,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.heartape.whisper.presentation.viewmodel.CreateGroupViewModel
-import com.heartape.whisper.utils.FileUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,7 +30,6 @@ fun CreateGroupScreen(
     onSuccess: () -> Unit,
     viewModel: CreateGroupViewModel = hiltViewModel()
 ) {
-    val context = LocalContext.current
     val isLoading by viewModel.isLoading.collectAsState()
     val isUploading by viewModel.isUploading.collectAsState()
     val avatarUrl by viewModel.avatarUrl.collectAsState()
@@ -54,12 +51,7 @@ fun CreateGroupScreen(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
-            val file = FileUtils.getFileFromUri(context, it)
-            if (file != null) {
-                // 将群头像强制压缩到 100KB 以内
-                val compressedFile = FileUtils.compressImage(context, file, maxSizeKB = 100)
-                viewModel.uploadAvatar(compressedFile)
-            }
+            viewModel.uploadIcon(it)
         }
     }
 

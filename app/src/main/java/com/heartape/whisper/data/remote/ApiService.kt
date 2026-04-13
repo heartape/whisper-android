@@ -10,8 +10,6 @@ interface ApiService {
     @GET("/user") suspend fun getCurrentUser(): ApiResponse<UserDto>
     @GET("/user/{id}") suspend fun getUser(@Path("id") id: Long): ApiResponse<UserDto>
     @GET("/user/find") suspend fun findUser(@Query("keyword") keyword: String): ApiResponse<List<UserSearchDto>>
-    @POST("/user/follow") suspend fun followUser(@Body req: Map<String, Long>): ApiResponse<Any>
-
     @GET("/session/contact")
     suspend fun getContacts(): ApiResponse<List<ContactDto>>
     @GET("/session/{sessionId}") suspend fun getSession(@Path("sessionId") sessionId: Long): ApiResponse<SessionDto>
@@ -22,8 +20,6 @@ interface ApiService {
     @POST("/session/group/apply") suspend fun applyGroup(@Body req: ApplyGroupReq): ApiResponse<Any>
     @GET("/session/apply/pending") suspend fun getPendingApplies(): ApiResponse<List<ApplyDto>>
     @POST("/session/apply/review") suspend fun reviewApply(@Body req: ReviewReq): ApiResponse<Any>
-
-    @GET("/session/{sessionId}/messages") suspend fun getHistoryMessages(@Path("sessionId") sessionId: Long): ApiResponse<List<MessageDto>>
     @GET("/session/{sessionId}/announcement") suspend fun getAnnouncements(@Path("sessionId") sessionId: Long): ApiResponse<AnnouncementDto>
     @POST("/session/{sessionId}/announcement") suspend fun publishAnnouncement(@Path("sessionId") sessionId: Long, @Body req: AnnounceReq): ApiResponse<Any>
 

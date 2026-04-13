@@ -5,10 +5,12 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Log
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.FileNotFoundException
 import java.io.FileOutputStream
-import java.io.InputStream
 import java.net.URLConnection
 
 object FileUtils {
@@ -29,18 +31,18 @@ object FileUtils {
     }
 
     // 从相册 Uri 获取原始临时文件
-    fun getFileFromUri(context: Context, uri: Uri): File? {
-        return try {
-            val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
-            val tempFile = File(context.cacheDir, "temp_upload_${System.currentTimeMillis()}.jpg")
-            val outputStream = FileOutputStream(tempFile)
-            inputStream?.copyTo(outputStream)
-            inputStream?.close()
-            outputStream.close()
-            tempFile
-        } catch (e: Exception) {
-            null
-        }
+    suspend fun getFileFromUri(context: Context, uri: Uri): File = withContext(Dispatchers.IO) {
+        val inputStream = context.contentResolver.openInputStream(uri)
+            ?: throw FileNotFoundException("无法读取相册图片")
+
+        val tempFile = File(context.cacheDir, "temp_upload_${System.currentTimeMillis()}.jpg")
+        val outputStream = FileOutputStream(tempFile)
+
+        inputStream.copyTo(outputStream) // 耗时 IO 操作
+        inputStream.close()
+        outputStream.close()
+
+        tempFile
     }
 
     /**
@@ -48,15 +50,14 @@ object FileUtils {
      * @param originalFile 原始图片文件
      * @param maxSizeKB 目标最大体积 (KB)
      */
-    fun compressImage(context: Context, originalFile: File, maxSizeKB: Int = 100): File {
+    suspend fun compressImage(context: Context, originalFile: File, maxSizeKB: Int = 100): File = withContext(Dispatchers.IO) {
         // 如果原图本身就已经小于目标大小，直接返回原图
         if (originalFile.length() <= maxSizeKB * 1024) {
-            return originalFile
+            return@withContext originalFile
         }
 
-        // 1. 第一步：尺寸等比压缩 (防止加载超大图直接导致 OOM)
-        val options = BitmapFactory.Options()
-        options.inJustDecodeBounds = true // 仅测量边界，不真正加载到内存
+        // 尺寸等比压缩 (防止加载超大图直接导致 OOM)
+        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(originalFile.absolutePath, options)
 
         // 假设头像的最大合理边长为 800px
@@ -73,7 +74,7 @@ object FileUtils {
         // 真正加载缩放后的图片到内存
         options.inJustDecodeBounds = false
         options.inSampleSize = inSampleSize
-        val bitmap = BitmapFactory.decodeFile(originalFile.absolutePath, options) ?: return originalFile
+        val bitmap = BitmapFactory.decodeFile(originalFile.absolutePath, options) ?: throw IllegalArgumentException("图片解码失败")
 
         // 2. 第二步：质量循环压缩 (逼近目标 KB 大小)
         var quality = 100
@@ -100,6 +101,6 @@ object FileUtils {
             originalFile.delete()
         }
 
-        return compressedFile
+        compressedFile
     }
 }

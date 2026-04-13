@@ -2,7 +2,6 @@ package com.heartape.whisper.utils
 
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import androidx.core.net.toUri
 import com.heartape.whisper.data.model.AppResult
 import com.heartape.whisper.utils.ErrorUtils.runSafeSync

@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,7 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -37,7 +38,7 @@ import java.util.*
 
 
 sealed class BottomNavItem(val route: String, val title: String, val icon: ImageVector) {
-    object Message : BottomNavItem("tab_message", "消息", Icons.Default.Chat)
+    object Message : BottomNavItem("tab_message", "消息", Icons.AutoMirrored.Filled.Chat)
     object Profile : BottomNavItem("tab_profile", "我的", Icons.Default.Person)
 }
 

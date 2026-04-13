@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,7 +22,7 @@ import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.heartape.whisper.data.local.MemberEntity
 import com.heartape.whisper.presentation.viewmodel.ChatViewModel
@@ -223,7 +224,7 @@ fun ChatInputBar(
                     onSendText(text)
                     text = ""
                 }) {
-                    Icon(Icons.Default.Send, "发送", tint = MaterialTheme.colorScheme.primary)
+                    Icon(Icons.AutoMirrored.Filled.Send, "发送", tint = MaterialTheme.colorScheme.primary)
                 }
             } else {
                 IconButton(onClick = { /* 打开更多面板 */ }) {

@@ -16,14 +16,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.heartape.whisper.component.WhisperBaseDialog
 import com.heartape.whisper.component.WhisperDialogTextField
 import com.heartape.whisper.presentation.viewmodel.SettingsViewModel
-import com.heartape.whisper.utils.FileUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,7 +32,6 @@ fun ProfileSettingsScreen(
     val user by viewModel.currentUser.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
-    val context = LocalContext.current
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -53,14 +50,7 @@ fun ProfileSettingsScreen(
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        uri?.let {
-            val file = FileUtils.getFileFromUri(context, it)
-            if (file != null) {
-                // 将图片压缩到 100KB 以内
-                val compressedFile = FileUtils.compressImage(context, file, maxSizeKB = 100)
-                viewModel.updateAvatar(compressedFile)
-            }
-        }
+        uri?.let { viewModel.updateAvatar(uri) }
     }
 
     Scaffold(

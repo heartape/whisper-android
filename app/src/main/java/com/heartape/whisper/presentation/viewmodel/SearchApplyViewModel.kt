@@ -57,19 +57,21 @@ class SearchApplyViewModel @Inject constructor(
 
     fun applyFriend(targetId: Long, applyInfo: String, aliasName: String, onSuccess: () -> Unit) {
         viewModelScope.launch {
-            try {
-                repo.applyFriend(ApplyPeerReq(targetId, applyInfo, aliasName.ifBlank { null }))
-                onSuccess()
-            } catch (e: Exception) { }
+            val result = repo.applyFriend(ApplyPeerReq(targetId, applyInfo, aliasName.ifBlank { null }))
+            when(result) {
+                is AppResult.Error -> {}
+                is AppResult.Success<*> -> onSuccess()
+            }
         }
     }
 
     fun applyGroup(sessionId: Long, applyInfo: String, onSuccess: () -> Unit) {
         viewModelScope.launch {
-            try {
-                repo.applyGroup(ApplyGroupReq(sessionId, applyInfo))
-                onSuccess()
-            } catch (e: Exception) { }
+            val result = repo.applyGroup(ApplyGroupReq(sessionId, applyInfo))
+            when(result) {
+                is AppResult.Error -> {}
+                is AppResult.Success<*> -> onSuccess()
+            }
         }
     }
 }

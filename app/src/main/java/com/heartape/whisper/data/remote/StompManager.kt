@@ -2,9 +2,7 @@ package com.heartape.whisper.data.remote
 
 import android.util.Log
 import com.google.gson.Gson
-import com.heartape.whisper.data.model.AppResult
 import com.heartape.whisper.data.model.MessageDto
-import com.heartape.whisper.utils.ErrorUtils.runSafe
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

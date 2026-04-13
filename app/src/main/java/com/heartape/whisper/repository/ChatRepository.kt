@@ -1,5 +1,7 @@
 package com.heartape.whisper.repository
 
+import android.content.Context
+import android.net.Uri
 import com.heartape.whisper.data.local.ContactEntity
 import com.heartape.whisper.data.local.DatabaseManager
 import com.heartape.whisper.data.local.MemberEntity
@@ -11,7 +13,9 @@ import com.heartape.whisper.data.remote.ApiService
 import com.heartape.whisper.data.remote.StompManager
 import com.heartape.whisper.utils.ErrorUtils.runSafe
 import com.heartape.whisper.utils.ErrorUtils.runSafeWithRetry
+import com.heartape.whisper.utils.FileUtils
 import com.heartape.whisper.utils.FileUtils.detectMime
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -23,8 +27,6 @@ import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
-import java.io.File
-import java.net.URLConnection
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -34,7 +36,8 @@ class ChatRepository @Inject constructor(
     val api: ApiService,
     private val dbManager: DatabaseManager,
     private val stomp: StompManager,
-    private val prefsManager: PrefsManager
+    private val prefsManager: PrefsManager,
+    @ApplicationContext private val context: Context
 ) {
     val wsStatus = stomp.wsStatus
 
@@ -74,7 +77,6 @@ class ChatRepository @Inject constructor(
             remoteSessions.map { remote ->
                 val local = localSessionsMap[remote.id]
                 async {
-                    // todo:收集错误用于重试
                     syncSingleSessionDetails(local, remote)
                 }
             }.awaitAll()
@@ -312,10 +314,12 @@ class ChatRepository @Inject constructor(
         api.applyGroup(req).unwrap()
     }
 
-    suspend fun uploadIcon(file: File): AppResult<UploadDto> = runSafe {
-        val mimeType = detectMime(file)
-        val requestFile = file.asRequestBody(mimeType.toMediaTypeOrNull())
-        val body = MultipartBody.Part.createFormData("file", file.name, requestFile)
+    suspend fun uploadIcon(uri: Uri): AppResult<UploadDto> = runSafe {
+        val rawFile = FileUtils.getFileFromUri(context, uri)
+        val compressedFile = FileUtils.compressImage(context, rawFile, 100)
+        val mimeType = detectMime(compressedFile)
+        val requestFile = compressedFile.asRequestBody(mimeType.toMediaTypeOrNull())
+        val body = MultipartBody.Part.createFormData("file", compressedFile.name, requestFile)
         return@runSafe api.uploadIcon(body).unwrap()
     }
 }

@@ -1,7 +1,5 @@
 package com.heartape.whisper.presentation.viewmodel
 
-import android.content.Context
-import android.content.pm.PackageInfo
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.heartape.whisper.data.model.AppResult
@@ -11,9 +9,7 @@ import com.heartape.whisper.repository.SystemRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
-import java.io.File
 import javax.inject.Inject
 
 sealed class UpdateState {

@@ -14,7 +14,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.heartape.whisper.component.WhisperBaseDialog
 import com.heartape.whisper.presentation.viewmodel.AboutViewModel
 import com.heartape.whisper.presentation.viewmodel.UpdateState

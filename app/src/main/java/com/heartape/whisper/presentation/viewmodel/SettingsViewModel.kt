@@ -1,10 +1,9 @@
 package com.heartape.whisper.presentation.viewmodel
 
-import android.util.Log
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.heartape.whisper.data.local.DatabaseManager
-import com.heartape.whisper.data.local.PrefsManager
 import com.heartape.whisper.data.model.AppResult
 import com.heartape.whisper.data.model.UserDto
 import com.heartape.whisper.repository.UserRepository
@@ -12,14 +11,12 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import java.io.File
 import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val repo: UserRepository,
     private val dbManager: DatabaseManager,
-    private val prefsManager: PrefsManager,
 ) : ViewModel() {
 
     val currentUser: StateFlow<UserDto> = repo.currentUserFlow
@@ -85,10 +82,10 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun updateAvatar(file: File) {
+    fun updateAvatar(uri: Uri) {
         viewModelScope.launch {
             _isLoading.value = true
-            val result = repo.updateAvatar(file)
+            val result = repo.updateAvatar(uri)
             if (result is AppResult.Error) {
                 _errorMessage.value = result.message
             }

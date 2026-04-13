@@ -4,7 +4,6 @@ import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.heartape.whisper.data.model.MemberDto
 import com.heartape.whisper.repository.ChatRepository
 import com.heartape.whisper.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel

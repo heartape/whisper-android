@@ -1,10 +1,6 @@
 package com.heartape.whisper.data.model
 
-data class ApiResponse<T>(val code: Int, val data: T) {
-    fun isOk() : Boolean {
-        return code == 0
-    }
-}
+data class ApiResponse<T>(val code: Int, val data: T)
 
 data class LoginResponse(val Authorization: String)
 data class UserDto(val id: Long, val phone: String, val username: String, val avatar: String, val bio: String, val role: String)
@@ -40,7 +36,6 @@ data class ManageMemberReq(
     val userId: Long, // 私聊或群聊踢人时传 userId；群聊修改自己的 alias 时传 null
     val action: String,
 )
-data class WsMessageReq(val messageType: String, val messageInfo: String)
 data class UpdateUsernameReq(val username: String)
 data class UpdateAvatarReq(val avatar: String)
 data class UpdateBioReq(val bio: String)

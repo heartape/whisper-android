@@ -1,11 +1,11 @@
 package com.heartape.whisper.repository
 
 import android.content.Context
+import android.net.Uri
 import com.heartape.whisper.data.model.UserDto
 import com.heartape.whisper.data.remote.ApiService
 import javax.inject.Inject
 import javax.inject.Singleton
-import com.heartape.whisper.data.local.DatabaseManager
 import com.heartape.whisper.data.local.PrefsManager
 import com.heartape.whisper.data.model.AppResult
 import com.heartape.whisper.data.model.UpdateAvatarReq
@@ -16,6 +16,7 @@ import com.heartape.whisper.data.model.UpdateUsernameReq
 import com.heartape.whisper.data.model.unwrap
 import com.heartape.whisper.utils.ErrorUtils.runSafe
 import com.heartape.whisper.utils.FileUtils
+import com.heartape.whisper.utils.FileUtils.detectMime
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,7 +24,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
-import java.io.File
 
 @Singleton
 class UserRepository @Inject constructor(
@@ -47,9 +47,11 @@ class UserRepository @Inject constructor(
         updateLocalUser { it.copy(username = username) }
     }
 
-    suspend fun updateAvatar(file: File): AppResult<Unit> = runSafe {
-        val compressedFile = FileUtils.compressImage(context, file, 100)
-        val requestFile = compressedFile.asRequestBody("image/*".toMediaTypeOrNull())
+    suspend fun updateAvatar(uri: Uri): AppResult<Unit> = runSafe {
+        val rawFile = FileUtils.getFileFromUri(context, uri)
+        val compressedFile = FileUtils.compressImage(context, rawFile, 100)
+        val mimeType = detectMime(rawFile)
+        val requestFile = compressedFile.asRequestBody(mimeType.toMediaTypeOrNull())
         val body = MultipartBody.Part.createFormData("file", compressedFile.name, requestFile)
         val uploadDto = api.uploadAvatar(body).unwrap()
         api.updateAvatar(UpdateAvatarReq(uploadDto.path)).unwrap()
