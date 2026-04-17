@@ -15,32 +15,35 @@ class DatabaseManager @Inject constructor(
     private var currentDb: AppDatabase? = null
 
     @Synchronized
-    fun getDatabase(): AppDatabase {
-        val userId = prefsManager.currentUserProfile.id
+    fun openDatabase(userId: Long) {
+        if (userId == 0L) return
 
-        // 如果当前已经打开了该用户的数据库，直接返回复用
-        if (currentDb != null && currentUserId == userId) {
-            return currentDb!!
-        }
+        // 如果当前已经打开了该用户的库，直接返回
+        if (currentDb != null && currentUserId == userId) return
 
-        // 如果是切换了账号，先关闭旧的数据库连接
+        // 关闭旧库，开启新库
         currentDb?.close()
-
-        // 为该用户创建专属的物理隔离数据库文件
         currentUserId = userId
         currentDb = Room.databaseBuilder(
             context,
             AppDatabase::class.java,
-            "whisper_db_user_$userId" // ★ 核心：根据 userId 动态命名数据库文件
+            "whisper_db_user_$userId"
         )
             .fallbackToDestructiveMigration()
             .build()
-
-        return currentDb!!
     }
 
-    val sessionDao: SessionDao
-        get() = getDatabase().sessionDao()
+    val sessionDao: SessionDao get() = getSafeDb().sessionDao()
+//    val messageDao: MessageDao? get() = getDatabase()?.messageDao()
+//    val memberDao: MemberDao? get() = getDatabase()?.memberDao()
+
+    private fun getSafeDb(): AppDatabase {
+        if (currentDb == null) {
+            val userId = prefsManager.requireUserId()
+            openDatabase(userId)
+        }
+        return currentDb!!
+    }
 
     @Synchronized
     fun closeDatabase() {

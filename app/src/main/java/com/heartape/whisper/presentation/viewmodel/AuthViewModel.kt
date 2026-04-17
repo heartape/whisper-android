@@ -30,11 +30,13 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             when (val result = authRepo.login(phone, code)) {
+                is AppResult.Error -> _errorMessage.value = result.message
                 is AppResult.Success -> {
-                    onSuccess()
-                }
-                is AppResult.Error -> {
-                    _errorMessage.value = result.message // 这里拿到的一定是友好的中文提示
+
+                    when (val result = authRepo.initProfile()) {
+                        is AppResult.Error -> _errorMessage.value = result.message
+                        is AppResult.Success<*> -> onSuccess()
+                    }
                 }
             }
 

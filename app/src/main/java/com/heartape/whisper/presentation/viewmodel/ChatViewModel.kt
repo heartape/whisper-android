@@ -19,7 +19,7 @@ class ChatViewModel @Inject constructor(
 
     private val sessionId: Long = savedStateHandle.get<String>("sessionId")?.toLong() ?: 0L
     val sessionName: String = savedStateHandle.get<String>("sessionName") ?: "聊天"
-    val currentUser = userRepo.currentUserFlow
+    val currentUserId: Long = userRepo.requireUserId()
 
     private val _messageLimit = MutableStateFlow(50)
     val currentLimit: Int get() = _messageLimit.value

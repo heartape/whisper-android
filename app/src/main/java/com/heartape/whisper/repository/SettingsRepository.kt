@@ -9,7 +9,7 @@ import javax.inject.Singleton
 
 @Singleton
 class SettingsRepository @Inject constructor(
-    private val prefsManager: PrefsManager
+    val prefsManager: PrefsManager
 ) {
     // 监听深色模式（默认跟随系统或设为 false）
     private val _isDarkMode = MutableStateFlow(prefsManager.isDarkMode)

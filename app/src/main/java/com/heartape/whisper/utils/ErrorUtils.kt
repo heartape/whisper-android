@@ -1,6 +1,7 @@
 package com.heartape.whisper.utils
 
 import android.database.sqlite.SQLiteException
+import com.heartape.whisper.data.model.ApiDataException
 import com.heartape.whisper.data.model.ApiException
 import com.heartape.whisper.data.model.AppResult
 import kotlinx.coroutines.delay
@@ -99,6 +100,7 @@ object ErrorUtils {
         return when (e) {
             // === API 业务异常 ===
             is ApiException -> getBusinessErrorMessage(e.code, e.message)
+            is ApiDataException -> "数据异常: ${e.message}"
 
             // === 网络异常 ===
             is UnknownHostException -> "当前无网络连接，请检查网络设置"

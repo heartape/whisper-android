@@ -43,7 +43,7 @@ class MainActivity : ComponentActivity() {
                 ) {
                     val navController = rememberNavController()
 
-                    val startDest = if (getSharedPreferences("whisper_prefs", MODE_PRIVATE).getString("token", null) != null) {
+                    val startDest = if (settingsRepo.prefsManager.isLoggedIn()) {
                         "main"
                     } else {
                         "login"

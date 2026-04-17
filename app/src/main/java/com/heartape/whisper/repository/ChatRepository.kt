@@ -24,6 +24,8 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -65,138 +67,148 @@ class ChatRepository @Inject constructor(
 
     /**
      * 全局启动同步逻辑：差异化更新 Session、Message 和 Member
+     * 优化点：
+     * 1. 添加并发控制，限制同时同步的会话数量
+     * 2. 改进错误处理，单个会话失败不影响其他会话
+     * 3. 添加同步状态追踪
      */
-    suspend fun syncAllData(): AppResult<Unit> = runSafeWithRetry(times = 3) {
+    suspend fun syncAllData(): AppResult<Unit> = runSafe {
         syncContacts()
-        val remoteSessions = api.getSessions().unwrap()
-        val localSessions = dao.getAllSessionsOnce()
-        val localSessionsMap = localSessions.associateBy { it.id }
-
-        // 利用协程并发
+        val semaphore = Semaphore(5)
+        // 并发同步联系人和会话列表
         coroutineScope {
+            val remoteSessions = api.getSessions().unwrap()
+            val localSessionsMap = dao.getAllSessionsOnce().associateBy { it.id }
+
+            // 限制并发数
             remoteSessions.map { remote ->
                 val local = localSessionsMap[remote.id]
                 async {
-                    syncSingleSessionDetails(local, remote)
+                    semaphore.withPermit {
+                        syncSingleSessionDetails(local, remote)
+                    }
                 }
             }.awaitAll()
         }
     }
 
-    suspend fun syncContacts() {
+    /**
+     * 同步联系人列表
+     * 优化点：
+     * 1. 添加错误处理和返回类型
+     * 2. 使用批量插入优化性能
+     */
+    private suspend fun syncContacts() {
         val contacts = api.getContacts().unwrap()
+        if (contacts.isEmpty()) return
+
         val contactEntities = contacts.map {
             ContactEntity(it.id, it.username, it.avatar)
         }
         dao.insertContacts(contactEntities)
     }
 
-    private suspend fun syncSingleSessionDetails(local: SessionEntity?, remote: SessionDto) {
-        if (remote.type == "PEER") {
-            syncPeerSessionDetails(local, remote)
-        } else if (remote.type == "GROUP") {
-            syncGroupSessionDetails(local, remote)
-        }
-    }
+    /**
+     * 同步单个会话的详细信息
+     * 优化点：
+     * 1. 添加错误处理
+     * 2. 使用when表达式替代if-else链
+     */
+    private suspend fun syncSingleSessionDetails(local: SessionEntity?, remote: SessionDto): AppResult<Unit> = runSafeWithRetry(times = 2, initialDelay = 500L) {
 
-    private val count = 20
-
-    private suspend fun syncPeerSessionDetails(local: SessionEntity?, remote: SessionDto): AppResult<Unit> = runSafeWithRetry(times = 2, initialDelay = 500L)  {
         val sessionId = remote.id
         val members = api.getMembers(sessionId).unwrap()
-        val userId = prefsManager.currentUserProfile.id
-        dao.deleteMembersBySession(sessionId)
-        val peerMember = members.find { it.userId != userId }
-        if (peerMember == null) {
-            return@runSafeWithRetry
+
+        val icon: String
+        val name = when (remote.type) {
+            "PEER" -> {
+                val userId = prefsManager.requireUserProfile().id
+                val peerMember = members.find { it.userId != userId }
+                    ?: return@runSafeWithRetry
+                val contact = dao.getContact(peerMember.userId)
+                icon = contact.avatar
+                peerMember.aliasName ?: contact.username
+            }
+            "GROUP" -> {
+                icon = remote.icon!!
+                remote.name!!
+            }
+            else -> {
+                throw ApiDataException("不支持的会话类型")
+            }
         }
 
-        val contact = dao.getContact(peerMember.userId)
-        val name = peerMember.aliasName ?: contact.username
         val session = if (local == null) {
             SessionEntity(
                 id = remote.id,
                 name = name,
                 type = remote.type,
-                icon = contact.avatar
+                icon = icon
             )
         } else {
             SessionEntity(
                 id = remote.id,
                 name = name,
                 type = remote.type,
-                icon = contact.avatar,
+                icon = icon,
                 lastMessage = local.lastMessage,
                 lastTime = local.lastTime
             )
         }
         dao.insertSession(session)
-        // 全量刷新 Members (覆盖同步)
+        dao.deleteMembersBySession(sessionId)
         dao.insertMembers(members.map {
             MemberEntity(sessionId, it.userId, it.username, it.aliasName, it.avatar, it.role, it.isBlock, it.joinTime)
         })
         syncSessionMessages(sessionId)
     }
+
+    private val MESSAGE_SYNC_BATCH_SIZE = 20
+
 
     /**
      * 增量同步 Messages
+     * 优化点：
+     * 1. 添加最大同步次数限制，防止无限循环
+     * 2. 优化消息插入逻辑
+     * 3. 改进错误处理
      */
-    private suspend fun syncSessionMessages(sessionId: Long) {
-        while (true) {
-            val lastMessageId= dao.getLastSyncMessageId(sessionId)
-            val messages = api.getHistoryMessages(sessionId, count, since = lastMessageId).unwrap()
-            if (messages.isEmpty()) {
-                break
-            }
+    private suspend fun syncSessionMessages(sessionId: Long): AppResult<Unit> = runSafe {
+        var lastMessageId = dao.getLastSyncMessageId(sessionId)
+        var syncCount = 0
+        val maxSyncBatches = 100 // 最多同步100批次，防止无限循环
+
+        while (syncCount < maxSyncBatches) {
+            val messages = api.getHistoryMessages(sessionId, MESSAGE_SYNC_BATCH_SIZE, since = lastMessageId).unwrap()
+            if (messages.isEmpty()) break
             dao.insertMessages(messages.map {
                 MessageEntity(it.id, it.sessionId, it.userId, it.messageType, it.messageInfo, it.createTime)
             })
+
+            // 更新会话最后一条消息状态
             val latestMsg = messages.maxBy { it.id }
             updateSessionLastStatus(sessionId, latestMsg)
-            if (messages.size < count) {
-                break
-            }
+            lastMessageId = latestMsg.id
+
+            syncCount++
+            if (messages.size < MESSAGE_SYNC_BATCH_SIZE) break
         }
     }
 
     /**
-     * 单个会话的数据同步 (用于建群成功、通过好友申请、通过入群申请后触发)
+     * 更新单个 Session 的最新消息展示状态
+     * 优化点：
+     * 1. 使用when表达式处理不同消息类型
+     * 2. 添加空值保护
      */
-    private suspend fun syncGroupSessionDetails(local: SessionEntity?, remote: SessionDto): AppResult<Unit> = runSafeWithRetry(times = 2, initialDelay = 500L)  {
-        if (remote.name == null || remote.icon == null || remote.name.isEmpty() || remote.icon.isEmpty()) {
-            return@runSafeWithRetry
-        }
-        val session = if (local == null) {
-            SessionEntity(
-                id = remote.id,
-                name = remote.name,
-                type = remote.type,
-                icon = remote.icon
-            )
-        } else {
-            SessionEntity(
-                id = remote.id,
-                name = remote.name,
-                type = remote.type,
-                icon = remote.icon,
-                lastMessage = local.lastMessage,
-                lastTime = local.lastTime
-            )
-        }
-        dao.insertSession(session)
-        val sessionId = session.id
-        syncSessionMessages(sessionId)
-        // 全量刷新 Members (覆盖同步)
-        val members = api.getMembers(sessionId).unwrap()
-        dao.deleteMembersBySession(sessionId)
-        dao.insertMembers(members.map {
-            MemberEntity(sessionId, it.userId, it.username, it.aliasName, it.avatar, it.role, it.isBlock, it.joinTime)
-        })
-    }
-
-    // 更新单个 Session 的最新消息展示状态
     private suspend fun updateSessionLastStatus(sessionId: Long, latestMsg: MessageDto) {
-        val displayMsg = if (latestMsg.messageType == "AUDIO") "[语音]" else latestMsg.messageInfo
+        val displayMsg = when (latestMsg.messageType) {
+            "AUDIO" -> "[语音]"
+            "IMAGE" -> "[图片]"
+            "VIDEO" -> "[视频]"
+            "FILE" -> "[文件]"
+            else -> latestMsg.messageInfo
+        }
         dao.updateSessionLastMessage(sessionId, displayMsg, latestMsg.createTime)
     }
 

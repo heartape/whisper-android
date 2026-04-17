@@ -12,6 +12,7 @@ sealed interface AppResult<out T> {
  * 自定义业务异常：专门用于承载服务端 code != 0 的报错
  */
 class ApiException(message: String, val code: Int) : Exception(message)
+class ApiDataException(message: String) : Exception(message)
 
 /**
  * 自动解包 ApiResponse

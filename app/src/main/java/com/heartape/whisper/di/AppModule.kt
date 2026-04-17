@@ -49,7 +49,7 @@ object AppModule {
             .addInterceptor(versionInterceptor)
             .addInterceptor { chain ->
                 val request = chain.request().newBuilder()
-                prefsManager.token?.let { request.addHeader("Authorization", it) }
+                prefsManager.getAccessToken()?.let { request.addHeader("Authorization", it) }
                 chain.proceed(request.build())
             }
             .build()

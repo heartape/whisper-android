@@ -3,7 +3,19 @@ package com.heartape.whisper.data.model
 data class ApiResponse<T>(val code: Int, val data: T)
 
 data class LoginResponse(val Authorization: String)
-data class UserDto(val id: Long, val phone: String, val username: String, val avatar: String, val bio: String, val role: String)
+data class UserDto(val id: Long, val phone: String, val username: String, val avatar: String, val bio: String, val role: String) {
+    companion object {
+        // ★ 引入空对象模式，消灭 UI 层的可空判定
+        val EMPTY = UserDto(
+            id = 0L,
+            phone = "",
+            username = "",
+            avatar = "",
+            bio = "",
+            role = ""
+        )
+    }
+}
 data class UserSearchDto(val id: Long, val username: String, val avatar: String, val bio: String)
 data class SessionDto(val id: Long, val name: String?, val type: String, val icon: String?)
 data class ApplyDto(val id: Long, val type: String, val sessionId: Long, val applicantId: Long, val applyInfo: String, val status: String)

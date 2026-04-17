@@ -15,21 +15,20 @@ import javax.inject.Inject
 @HiltViewModel
 class SessionViewModel @Inject constructor(
     private val repo: ChatRepository,
-    private val stomp: StompManager,
-    private val prefsManager: PrefsManager
+    stomp: StompManager,
+    prefsManager: PrefsManager
 ) : ViewModel() {
 
     val wsStatus = repo.wsStatus
     val sessions = repo.getActiveSessions().stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     private val _isSyncing = MutableStateFlow(false)
-    val isSyncing: StateFlow<Boolean> = _isSyncing
 
     private val _syncError = MutableStateFlow<String?>(null)
     val syncError: StateFlow<String?> = _syncError
 
     init {
-        val token = prefsManager.token
+        val token = prefsManager.getAccessToken()
         stomp.connect(token!!)
         refreshData()
     }

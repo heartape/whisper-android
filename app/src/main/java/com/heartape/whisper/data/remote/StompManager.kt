@@ -3,12 +3,15 @@ package com.heartape.whisper.data.remote
 import android.util.Log
 import com.google.gson.Gson
 import com.heartape.whisper.data.model.MessageDto
+import com.heartape.whisper.utils.GlobalEventBus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import okhttp3.*
 import javax.inject.Inject
@@ -31,6 +34,8 @@ class StompManager @Inject constructor(
 
     private val stompScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    private var heartbeatJob: Job? = null
+
      fun connect(token: String) {
         if (_wsStatus.value == WsStatus.CONNECTED) return
         _wsStatus.value = WsStatus.CONNECTING
@@ -42,12 +47,12 @@ class StompManager @Inject constructor(
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 webSocket.send("CONNECT\naccept-version:1.1,1.0\nAuthorization:$token\n\n\u0000")
+                startHeartbeat(webSocket)
                 // 防挂起保护：5秒内如果没收到 CONNECTED 帧，强行掐断重连
                 stompScope.launch {
                     delay(5000)
                     if (_wsStatus.value != WsStatus.CONNECTED) {
                         Log.e("STOMP", "STOMP握手超时，主动掐断")
-                        // 这会触发 onFailure 进行重连
                         webSocket.cancel()
                     }
                 }
@@ -79,9 +84,30 @@ class StompManager @Inject constructor(
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 _wsStatus.value = WsStatus.DISCONNECTED
+                val code = response?.code
+                if (code == 401 || code == 403) {
+                    stompScope.launch {
+                        GlobalEventBus.emitAuthError()
+                    }
+                    return
+                }
                 scheduleReconnect(token)
             }
         })
+    }
+
+    private fun startHeartbeat(webSocket: WebSocket) {
+        heartbeatJob?.cancel()
+        heartbeatJob = stompScope.launch {
+            while (isActive) {
+                delay(10000) // 10s
+                try {
+                    webSocket.send("\n")
+                } catch (_: Exception) {
+                    webSocket.cancel()
+                }
+            }
+        }
     }
 
     private fun scheduleReconnect(token: String) {

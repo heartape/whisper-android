@@ -38,7 +38,6 @@ fun SecuritySettingsScreen(
     var passwordInput by remember { mutableStateOf("") }
 
     val currentUser by viewModel.currentUser.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()

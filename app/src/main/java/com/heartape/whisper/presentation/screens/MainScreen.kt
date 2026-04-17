@@ -1,6 +1,5 @@
 package com.heartape.whisper.presentation.screens
 
-import android.util.Log
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
@@ -20,7 +19,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -126,82 +124,143 @@ fun SessionListScreen(
     viewModel: SessionViewModel = hiltViewModel()
 ) {
     val sessions by viewModel.sessions.collectAsState()
-    Log.d("SessionListScreen:sessions", sessions.toString())
     val wsStatus by viewModel.wsStatus.collectAsState()
+    val syncError by viewModel.syncError.collectAsState()
+
     var showMenu by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    Column(Modifier.fillMaxSize()) {
-        TopAppBar(
-            title = { Text("消息", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, fontWeight = FontWeight.Bold) },
-            navigationIcon = {
-                IconButton(onClick = onNavigatePendingApplies) {
-                    Icon(Icons.Default.Notifications, contentDescription = "通知")
-                }
-            },
-            actions = {
-                Box {
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.Add, contentDescription = "添加")
-                    }
-                    // 更新为三个选项
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false },
-                        modifier = Modifier.background(MaterialTheme.colorScheme.surface)
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("添加朋友") },
-                            leadingIcon = { Icon(Icons.Default.PersonAdd, null) },
-                            onClick = { showMenu = false; onNavigateAddFriend() }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("创建群聊") },
-                            leadingIcon = { Icon(Icons.Default.GroupAdd, null) },
-                            onClick = { showMenu = false; onNavigateCreateGroup() }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("加入群聊") },
-                            leadingIcon = { Icon(Icons.Default.AddComment, null) },
-                            onClick = { showMenu = false; onNavigateJoinGroup() }
-                        )
-                    }
-                }
-            }
-        )
-
-        if (wsStatus != WsStatus.CONNECTED) {
-            Box(
-                modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.errorContainer).padding(8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                val text = if (wsStatus == WsStatus.CONNECTING) "收取中..." else "网络连接断开"
-                Text(text, color = MaterialTheme.colorScheme.onErrorContainer)
-            }
+    // 后台静默同步失败时，弹出 Snackbar 提示
+    LaunchedEffect(syncError) {
+        syncError?.let { errorMsg ->
+            snackbarHostState.showSnackbar(
+                message = errorMsg,
+                duration = SnackbarDuration.Short
+            )
+            viewModel.clearError()
         }
+    }
 
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
-            items(sessions, key = { it.id }) { session ->
-                Row(
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text("消息", modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                },
+                navigationIcon = {
+                    IconButton(onClick = onNavigatePendingApplies) {
+                        Icon(Icons.Default.Notifications, contentDescription = "通知")
+                    }
+                },
+                actions = {
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(Icons.Default.Add, contentDescription = "添加")
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false },
+                            modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("添加朋友") },
+                                leadingIcon = { Icon(Icons.Default.PersonAdd, null) },
+                                onClick = { showMenu = false; onNavigateAddFriend() }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("创建群聊") },
+                                leadingIcon = { Icon(Icons.Default.GroupAdd, null) },
+                                onClick = { showMenu = false; onNavigateCreateGroup() }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("加入群聊") },
+                                leadingIcon = { Icon(Icons.Default.AddComment, null) },
+                                onClick = { showMenu = false; onNavigateJoinGroup() }
+                            )
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { padding ->
+        // ★ 去除了 Box 和 nestedScroll 嵌套，直接使用清爽的 Column 布局
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            // WebSocket 断网/重连 弱网提示横幅 (极简紧凑设计)
+            if (wsStatus == WsStatus.DISCONNECTED) {
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onNavigateChat(session.id, session.type, session.name) }
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .background(MaterialTheme.colorScheme.errorContainer)
+                        .padding(vertical = 4.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    AsyncImage(
-                        model = session.icon,
-                        contentDescription = "头像",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.size(50.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant)
+                    val text = "网络连接断开，请检查网络"
+                    Text(
+                        text = text,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.labelMedium
                     )
-                    Spacer(Modifier.width(16.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(text = session.name, fontWeight = FontWeight.Bold, fontSize = MaterialTheme.typography.titleMedium.fontSize)
-                        Spacer(Modifier.height(4.dp))
-                        Text(text = session.lastMessage, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
+            // 核心会话列表
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                items(sessions, key = { it.id }) { session ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onNavigateChat(session.id, session.type, session.name) }
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // 会话头像
+                        AsyncImage(
+                            model = session.icon.ifBlank { "https://picsum.photos/200" },
+                            contentDescription = "Avatar",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(50.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                        )
+                        Spacer(Modifier.width(16.dp))
+
+                        // 名称与最后一条消息
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = session.name,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = session.lastMessage.ifBlank { "暂无消息" },
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        // 消息时间
+                        val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+                        Text(
+                            text = if (session.lastTime > 0) sdf.format(Date(session.lastTime)) else "",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
-                    val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
-                    Text(text = if (session.lastTime > 0) sdf.format(Date(session.lastTime)) else "", style = MaterialTheme.typography.labelSmall)
                 }
             }
         }

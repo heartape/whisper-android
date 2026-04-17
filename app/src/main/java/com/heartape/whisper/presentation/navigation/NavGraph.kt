@@ -2,13 +2,33 @@ package com.heartape.whisper.presentation.navigation
 
 import androidx.compose.animation.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.heartape.whisper.presentation.screens.*
+import com.heartape.whisper.presentation.viewmodel.MainViewModel
 
 @Composable
-fun AppNavHost(navController: NavHostController, startDestination: String = "login") {
+fun AppNavHost(
+    navController: NavHostController,
+    startDestination: String,
+    mainViewModel: MainViewModel = hiltViewModel()
+) {
+    LaunchedEffect(Unit) {
+        mainViewModel.navigateToLogin.collect {
+            navController.navigate("login") {
+                // 清空整个路由栈，禁止用户通过物理返回键回到聊天页
+                popUpTo(navController.graph.id) {
+                    inclusive = true
+                }
+                // 防止连续触发创建多个登录页
+                launchSingleTop = true
+            }
+        }
+    }
+
     NavHost(
         navController = navController,
         startDestination = startDestination,

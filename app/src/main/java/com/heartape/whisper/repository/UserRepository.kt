@@ -2,6 +2,7 @@ package com.heartape.whisper.repository
 
 import android.content.Context
 import android.net.Uri
+import com.heartape.whisper.data.local.DatabaseManager
 import com.heartape.whisper.data.model.UserDto
 import com.heartape.whisper.data.remote.ApiService
 import javax.inject.Inject
@@ -18,9 +19,11 @@ import com.heartape.whisper.utils.ErrorUtils.runSafe
 import com.heartape.whisper.utils.FileUtils
 import com.heartape.whisper.utils.FileUtils.detectMime
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterNotNull
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -29,22 +32,19 @@ import okhttp3.RequestBody.Companion.asRequestBody
 class UserRepository @Inject constructor(
     private val api: ApiService,
     private val prefsManager: PrefsManager,
+    private val dbManager: DatabaseManager,
     @ApplicationContext private val context: Context
 ) {
-    private val _currentUserFlow = MutableStateFlow<UserDto>(prefsManager.currentUserProfile)
-    val currentUserFlow: StateFlow<UserDto> = _currentUserFlow.asStateFlow()
+    val currentUserFlow: Flow<UserDto> = prefsManager.currentUserFlow.filterNotNull()
 
-    private fun updateLocalUser(updater: (UserDto) -> UserDto) {
-        _currentUserFlow.value.let { current ->
-            val updated = updater(current)
-            prefsManager.currentUserProfile = updated
-            _currentUserFlow.value = updated
-        }
-    }
+    fun requireUserId(): Long = prefsManager.requireUserId()
+
+    private val _currentUserIdFlow = MutableStateFlow<Long>(0)
+    val currentUserIdFlow: StateFlow<Long> = _currentUserIdFlow.asStateFlow()
 
     suspend fun updateUsername(username: String): AppResult<Unit> = runSafe {
         api.updateUsername(UpdateUsernameReq(username)).unwrap()
-        updateLocalUser { it.copy(username = username) }
+        prefsManager.updateCurrentUser { it.copy(username = username) }
     }
 
     suspend fun updateAvatar(uri: Uri): AppResult<Unit> = runSafe {
@@ -55,28 +55,29 @@ class UserRepository @Inject constructor(
         val body = MultipartBody.Part.createFormData("file", compressedFile.name, requestFile)
         val uploadDto = api.uploadAvatar(body).unwrap()
         api.updateAvatar(UpdateAvatarReq(uploadDto.path)).unwrap()
-        updateLocalUser { it.copy(avatar = uploadDto.url) }
+        prefsManager.updateCurrentUser { it.copy(avatar = uploadDto.url) }
     }
 
     suspend fun updateBio(bio: String): AppResult<Unit> = runSafe {
         api.updateBio(UpdateBioReq(bio)).unwrap()
+        prefsManager.updateCurrentUser { it.copy(bio = bio) }
     }
 
     suspend fun updatePhone(phone: String): AppResult<Unit> = runSafe {
         api.updatePhone(UpdatePhoneReq(phone)).unwrap()
-        prefsManager.currentUserProfile = prefsManager.currentUserProfile.copy(phone = phone)
+        prefsManager.updateCurrentUser { it.copy(phone = phone) }
     }
 
     // 从服务器拉取并更新缓存
     suspend fun fetchAndCacheCurrentUser(): AppResult<UserDto> = runSafe {
         val userDto = api.getCurrentUser().unwrap()
-        prefsManager.currentUserProfile = userDto
-        _currentUserFlow.value = userDto
+        prefsManager.saveProfile(userDto)
         return@runSafe userDto
     }
 
     // 清除本地缓存和 Token（退出登录用）
     fun clearAuth() {
+        dbManager.closeDatabase()
         prefsManager.clearAuthData()
     }
 

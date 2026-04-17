@@ -22,7 +22,7 @@ class SessionSettingsViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val sessionId: Long = savedStateHandle.get<String>("sessionId")?.toLong() ?: 0L
-    val currentUserId: Long = userRepo.currentUserFlow.value.id
+    val currentUserId: Long = userRepo.currentUserIdFlow.value
     val session = repo.getSession(sessionId).stateIn(viewModelScope, SharingStarted.Lazily, null)
     val members = repo.getSessionMembers(sessionId).stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 

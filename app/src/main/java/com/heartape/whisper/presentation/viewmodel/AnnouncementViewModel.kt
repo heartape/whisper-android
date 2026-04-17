@@ -20,7 +20,7 @@ class AnnouncementViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val sessionId: Long = savedStateHandle.get<String>("sessionId")?.toLong() ?: 0L
-    private val currentUserId: Long = userRepo.currentUserFlow.value.id
+    private val currentUserId: Long = userRepo.currentUserIdFlow.value
 
     // 成员字典，用于快速查找发布者的头像和昵称
     val membersMap = repo.getSessionMembers(sessionId)

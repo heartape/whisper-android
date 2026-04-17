@@ -3,23 +3,24 @@ package com.heartape.whisper.presentation.viewmodel
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.heartape.whisper.data.local.DatabaseManager
 import com.heartape.whisper.data.model.AppResult
 import com.heartape.whisper.data.model.UserDto
 import com.heartape.whisper.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val repo: UserRepository,
-    private val dbManager: DatabaseManager,
 ) : ViewModel() {
 
     val currentUser: StateFlow<UserDto> = repo.currentUserFlow
+        .stateIn(viewModelScope, SharingStarted.Lazily, UserDto.EMPTY)
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
@@ -95,7 +96,6 @@ class SettingsViewModel @Inject constructor(
 
     fun logout(onSuccess: () -> Unit) {
         repo.clearAuth()
-        dbManager.closeDatabase()
         onSuccess()
     }
 

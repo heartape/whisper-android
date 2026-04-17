@@ -39,7 +39,7 @@ fun ChatScreen(
 ) {
     val messages by viewModel.messages.collectAsState()
     val membersMap by viewModel.membersMap.collectAsState()
-    val currentUser by viewModel.currentUser.collectAsState()
+    val currentUserId = viewModel.currentUserId
     val listState = rememberLazyListState()
     val context = LocalContext.current
     val audioRecorder = remember { AudioRecorder(context) }
@@ -99,7 +99,7 @@ fun ChatScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(messages, key = { it.id }) { msg ->
-                val isMine = msg.userId == currentUser.id
+                val isMine = msg.userId == currentUserId
                 val senderMember = membersMap[msg.userId]
                 senderMember?.let { MessageItem(it, isMine, msg.messageInfo, msg.createTime) }
             }

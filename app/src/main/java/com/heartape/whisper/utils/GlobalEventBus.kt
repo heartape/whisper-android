@@ -12,8 +12,19 @@ object GlobalEventBus {
     private val _forceUpdateEvent = MutableSharedFlow<VersionDto>(replay = 1)
     val forceUpdateEvent = _forceUpdateEvent.asSharedFlow()
 
+    private val _authErrorEvent = MutableSharedFlow<Unit>(replay = 0)
+    val authErrorEvent = _authErrorEvent.asSharedFlow()
+
     // 触发强制更新
     suspend fun emitForceUpdate(versionInfo: VersionDto) {
         _forceUpdateEvent.emit(versionInfo)
+    }
+
+    suspend fun emitAuthError() {
+        _authErrorEvent.emit(Unit)
+    }
+
+    fun tryEmitAuthError() {
+        _authErrorEvent.tryEmit(Unit)
     }
 }

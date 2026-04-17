@@ -21,6 +21,7 @@ class VersionInterceptor @Inject constructor(
     private val gson: Gson
 ) : Interceptor {
 
+    @Suppress("DEPRECATION")
     override fun intercept(chain: Interceptor.Chain): Response {
         // 1. 获取当前 App 版本号
         val pkgInfo = context.packageManager.getPackageInfo(context.packageName, 0)
@@ -52,6 +53,10 @@ class VersionInterceptor @Inject constructor(
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+            }
+        } else if (response.code == 401) {
+            CoroutineScope(Dispatchers.IO).launch {
+                GlobalEventBus.emitAuthError()
             }
         }
 
