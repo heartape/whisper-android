@@ -17,7 +17,7 @@ import okhttp3.*
 import javax.inject.Inject
 import javax.inject.Singleton
 
-enum class WsStatus { CONNECTING, CONNECTED, DISCONNECTED }
+enum class WsStatus { INIT, CONNECTING, CONNECTED, DISCONNECTED }
 
 @Singleton
 class StompManager @Inject constructor(
@@ -26,7 +26,7 @@ class StompManager @Inject constructor(
 ) {
     private var webSocket: WebSocket? = null
 
-    private val _wsStatus = MutableStateFlow(WsStatus.DISCONNECTED)
+    private val _wsStatus = MutableStateFlow(WsStatus.INIT)
     val wsStatus: StateFlow<WsStatus> = _wsStatus
 
     private val _incomingMessages = MutableStateFlow<MessageDto?>(null)
@@ -36,9 +36,13 @@ class StompManager @Inject constructor(
 
     private var heartbeatJob: Job? = null
 
-     fun connect(token: String) {
-        if (_wsStatus.value == WsStatus.CONNECTED) return
-        _wsStatus.value = WsStatus.CONNECTING
+    fun connect(token: String) {
+        when (_wsStatus.value) {
+            WsStatus.INIT -> _wsStatus.value = WsStatus.CONNECTING
+            WsStatus.CONNECTING -> return
+            WsStatus.CONNECTED -> return
+            WsStatus.DISCONNECTED -> {}
+        }
         val request = Request.Builder()
             .url("ws://10.0.2.2:8080/ws")
             .addHeader("Authorization", token)
@@ -112,7 +116,7 @@ class StompManager @Inject constructor(
 
     private fun scheduleReconnect(token: String) {
         stompScope.launch {
-            delay(3000) // 延迟 3 秒重试，完全不阻塞主线程
+            delay(5000) // 延迟 5 秒重试，完全不阻塞主线程
             connect(token)
         }
     }
